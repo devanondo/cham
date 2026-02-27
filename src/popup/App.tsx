@@ -3,30 +3,21 @@ import Header from './_components/header'
 
 export default function App() {
   const handleCapture = () => {
-    // Capture the visible area of the current tab
-    chrome.tabs.captureVisibleTab({ format: 'png' }, (dataUrl) => {
-      if (chrome.runtime.lastError) {
-        console.error(chrome.runtime.lastError.message)
-        return
-      }
+    // Tell the content script to start area selection.
+    // The actual screenshot will be captured AFTER the user finishes
+    // selecting the area (from the background service worker), so the
+    // image always reflects the current scroll position.
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTabId = tabs[0]?.id
+      if (!activeTabId) return
 
-      if (!dataUrl) return
-
-      // Send the captured image to the active tab so the content script
-      // can open it in a modal overlay inside the page.
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const activeTabId = tabs[0]?.id
-        if (!activeTabId) return
-
-        chrome.tabs.sendMessage(activeTabId, {
-          type: 'OPEN_CAPTURE_MODAL',
-          imageUrl: dataUrl,
-        })
+      chrome.tabs.sendMessage(activeTabId, {
+        type: 'START_AREA_SELECTION',
       })
-
-      // Optionally close the popup after triggering the modal
-      window.close()
     })
+
+    // Close the popup once the capture flow has been started.
+    window.close()
   }
 
   return (

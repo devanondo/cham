@@ -21,6 +21,10 @@ export default defineManifest({
       matches: ['https://*/*'],
     },
   ],
+  background: {
+    service_worker: 'src/background/main.ts',
+    type: 'module',
+  },
   side_panel: {
     default_path: 'src/sidepanel/index.html',
   },
