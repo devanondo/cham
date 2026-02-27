@@ -1,5 +1,18 @@
-import { Circle, X } from 'lucide-react'
-import type { FC } from 'react'
+import {
+  ArrowUpRight,
+  Circle,
+  CornerUpLeft,
+  CornerUpRight,
+  Droplet,
+  Eye,
+  Hand,
+  Slash,
+  Square,
+  Type,
+  X,
+} from 'lucide-react'
+import React, { useEffect, useRef, useState, type FC, type ReactElement } from 'react'
+import './ScreenshotModal.css'
 
 /**
  * Full-screen overlay that displays a captured screenshot on top of the page.
@@ -14,7 +27,49 @@ type ScreenshotModalProps = {
   onClose: () => void
 }
 
+const tools: { id: string; icon: ReactElement }[] = [
+  { id: 'eyedropper', icon: <Droplet size={18} /> },
+  { id: 'rectangle', icon: <Square size={18} /> },
+  { id: 'circle', icon: <Circle size={18} /> },
+  { id: 'arrow', icon: <ArrowUpRight size={18} /> },
+  { id: 'line', icon: <Slash size={18} /> },
+  { id: 'text', icon: <Type size={18} /> },
+  { id: 'preview', icon: <Eye size={18} /> },
+  { id: 'pan', icon: <Hand size={18} /> },
+]
+
+const COLOR_OPTIONS: string[] = [
+  '#ef4444', // red
+  '#f97316', // orange
+  '#eab308', // yellow
+  '#22c55e', // green
+  '#14b8a6', // teal
+  '#3b82f6', // blue
+  '#6366f1', // indigo
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#a3e635', // lime
+]
+
 const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl, onClose }) => {
+  const [activeTool, setActiveTool] = useState<string>('rectangle')
+  const [activeColor, setActiveColor] = useState<string>('#8b5cf6')
+  const [colorMenuOpen, setColorMenuOpen] = useState<boolean>(false)
+  const colorDropdownRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!colorMenuOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!colorDropdownRef.current) return
+      if (!colorDropdownRef.current.contains(event.target as Node)) {
+        setColorMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [colorMenuOpen])
   /**
    * Close when the user clicks on the dark backdrop area, but not
    * when they click inside the content card.
@@ -26,68 +81,102 @@ const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl,
   }
 
   return (
-    <div style={overlayStyle} onClick={handleBackdropClick}>
-      <div style={contentStyle}>
-        <div
-          style={{
-            display: 'flex',
-            gap: '24px',
-            height: '100%',
-          }}
-        >
-          <div style={imageContainerStyle}>
+    <div className="screenshot-modal__overlay" onClick={handleBackdropClick}>
+      <div className="screenshot-modal__content">
+        <div className="screenshot-modal__layout">
+          <div className="screenshot-modal__image-container">
+            {/* Toolbar */}
+            <div className="screenshot-modal__toolbar">
+              {/* Color swatch */}
+              <div className="relative">
+                <button
+                  type="button"
+                  className={`screenshot-modal__toolbar-item screenshot-modal__toolbar-item--swatch ${activeTool === 'eyedropper' ? 'screenshot-modal__toolbar-item--active' : ''}`}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setActiveTool('eyedropper')
+                    setColorMenuOpen((open) => !open)
+                  }} 
+                > 
+                  <span
+                    className="screenshot-modal__color-swatch"
+                    style={{ backgroundColor: activeColor }}
+                  />
+                </button>
+
+                {activeTool === 'eyedropper' && colorMenuOpen && (
+                  <div
+                    ref={colorDropdownRef}
+                    className="screenshot-modal__color-dropdown"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {COLOR_OPTIONS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`screenshot-modal__color-option ${activeColor === color ? 'screenshot-modal__color-option--active' : ''}`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => {
+                          setActiveColor(color)
+                          setColorMenuOpen(false)
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Main tools */}
+
+              {tools.map((tool) => (
+                <React.Fragment key={tool.id}>
+                  <button
+                    type="button"
+                    className={`screenshot-modal__toolbar-item ${activeTool === tool.id ? 'screenshot-modal__toolbar-item--active' : ''}`}
+                    onClick={() => setActiveTool(tool.id)}
+                  >
+                    {tool.icon}
+                  </button>
+                </React.Fragment>
+              ))}
+
+              {/* Undo / Redo */}
+              <div className="screenshot-modal__toolbar-divider" />
+              <button type="button" className="screenshot-modal__toolbar-item">
+                <CornerUpLeft size={18} />
+              </button>
+              <button type="button" className="screenshot-modal__toolbar-item">
+                <CornerUpRight size={18} />
+              </button>
+            </div>
+
             {/* Main working image: the selected / cropped area */}
-            <div
-              className=""
-              style={{
-                flexShrink: 0,
-              }}
-            >
-              <img src={imageUrl} alt="Captured screenshot" style={imageStyle} />
+            <div className="screenshot-modal__main-image-wrapper">
+              <img src={imageUrl} alt="Captured screenshot" className="screenshot-modal__image" />
             </div>
 
             {/* Optional small preview of the original full screenshot */}
             {originalImageUrl && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 16,
-                  bottom: 16,
-                  width: 200,
-                  height: 120,
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                  boxShadow: '0 8px 16px rgba(0,0,0,0.35)',
-                  border: '1px solid rgba(15, 23, 42, 0.4)',
-                  background: '#020617',
-                }}
-              >
+              <div className="screenshot-modal__preview">
                 <img
                   src={originalImageUrl}
                   alt="Original full screenshot"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
+                  className="screenshot-modal__preview-image"
                 />
               </div>
             )}
-
-            {/* Reserved space for future image editing toolbar */}
-            <div className="" style={toolbarContainerStyle}>
-              <div className="" style={toolbarItemStyle}>
-                <Circle size={20} />
-              </div>
-            </div>
           </div>
-          <div style={rightSideStyle}>
+          <div className="screenshot-modal__right-side">
             <h2 className="">Title</h2>
           </div>
         </div>
 
-        <button type="button" aria-label="Close screenshot" style={closeButtonStyle} onClick={onClose}>
+        <button
+          type="button"
+          aria-label="Close screenshot"
+          className="screenshot-modal__close-button"
+          onClick={onClose}
+        >
           <X />
         </button>
       </div>
@@ -96,85 +185,3 @@ const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl,
 }
 
 export default ScreenshotModal
-
-const toolbarContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: '8px',
-}
-const toolbarItemStyle: React.CSSProperties = {
-  width: '40px',
-  height: '40px',
-  border: '1px solid green',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer',
-}
-
-const overlayStyle: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0, 0, 0, 0.6)',
-  zIndex: 2147483647,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backdropFilter: 'blur(2px)',
-}
-
-const contentStyle: React.CSSProperties = {
-  position: 'relative',
-  maxWidth: '90vw',
-  width: '100%',
-  maxHeight: '90vh',
-  height: '100%',
-  background: '#fff',
-  borderRadius: 12,
-  overflow: 'hidden',
-  boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
-  border: '1px solid rgba(255,255,255,0.08)',
-}
-
-const imageStyle: React.CSSProperties = {
-  display: 'block',
-  // width: '100%',
-  // height: '100%',
-  objectFit: 'contain',
-}
-
-const closeButtonStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 8,
-  right: 8,
-  width: 32,
-  height: 32,
-  borderRadius: 9999,
-  border: 'none',
-  background: 'rgba(15, 23, 42, 0.9)',
-  color: '#e5e7eb',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-  padding: '2px',
-}
-
-const rightSideStyle: React.CSSProperties = {
-  width: '420px',
-  height: 'auto',
-  padding: '16px',
-  borderLeft: '1px solid #e5e7eb',
-}
-
-const imageContainerStyle: React.CSSProperties = {
-  flex: 1,
-  width: '100%',
-  height: '100%',
-  display: 'flex',
-  alignItems: 'center',
-  flexDirection: 'column',
-  gap: '16px',
-  justifyContent: 'space-between',
-  padding: '16px',
-}
