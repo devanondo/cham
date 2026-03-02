@@ -1,122 +1,96 @@
 import type { FC, MouseEvent as ReactMouseEvent } from 'react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
-/**
- * Overlay that lets the user select a rectangular area on top of
- * the captured screenshot.
- *
- * Props:
- * - onCancel: called when the user cancels selection.
- * - onSelectionComplete: called with the final selection rectangle (in
- *   viewport coordinates) and the current viewport size, so the caller
- *   can decide when and how to capture/crop the screenshot.
- *
- * Implementation notes:
- * - We render the screenshot stretched to cover the viewport (100vw x 100vh).
- * - The selection rectangle uses viewport coordinates.
- * - We map viewport selection -> image pixel coordinates using the
- *   ratio between image natural size and window size.
- */
-type ScreenSelectionOverlayProps = {
-  onCancel: () => void
-  onSelectionComplete: (
-    selection: SelectionRect,
-    viewport: {
-      width: number
-      height: number
-    },
-  ) => void
-}
-
-type SelectionRect = {
+export type SelectionRect = {
   x: number
   y: number
   width: number
   height: number
 }
 
-const ScreenSelectionOverlay: FC<ScreenSelectionOverlayProps> = ({ onCancel, onSelectionComplete }) => {
+/** Display rect of the image on screen (e.g. when using object-fit: contain). */
+export type ImageDisplayInfo = {
+  naturalWidth: number
+  naturalHeight: number
+  displayRect: { left: number; top: number; width: number; height: number }
+}
+
+/**
+ * Overlay that lets the user select a rectangular area.
+ * When imageUrl is provided, the image is shown and the selection is drawn on top of it,
+ * and onSelectionComplete receives imageDisplayInfo so the caller can crop the original image.
+ */
+type ScreenSelectionOverlayProps = {
+  onCancel: () => void
+  onSelectionComplete: (
+    selection: SelectionRect,
+    viewport: { width: number; height: number },
+    imageDisplayInfo?: ImageDisplayInfo
+  ) => void
+  /** When set, this image is shown and the user selects on it; selection is in viewport coords and imageDisplayInfo is passed for cropping. */
+  imageUrl?: string | null
+}
+
+const ScreenSelectionOverlay: FC<ScreenSelectionOverlayProps> = ({
+  onCancel,
+  onSelectionComplete,
+  imageUrl,
+}) => {
   const [isDragging, setIsDragging] = useState(false)
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null)
   const [selection, setSelection] = useState<SelectionRect | null>(null)
   const [cursorPosition, setCursorPosition] = useState<{ x: number; y: number } | null>(null)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const imageRef = useRef<HTMLImageElement>(null)
 
-  /**
-   * Begin a drag operation to start drawing a selection rectangle.
-   */
   const handleMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
-    // Only respond to left-click.
     if (event.button !== 0) return
-
     const x = event.clientX
     const y = event.clientY
-
     setStartPoint({ x, y })
-    setSelection({
-      x,
-      y,
-      width: 0,
-      height: 0,
-    })
+    setSelection({ x, y, width: 0, height: 0 })
     setIsDragging(true)
   }
 
-  /**
-   * Update the selection rectangle while dragging.
-   */
   const handleMouseMove = (event: ReactMouseEvent<HTMLDivElement>) => {
-    // Track cursor position so we can show helper text next to it.
     setCursorPosition({ x: event.clientX, y: event.clientY })
-
     if (!isDragging || !startPoint) return
-
     const currentX = event.clientX
     const currentY = event.clientY
-
     const x = Math.min(startPoint.x, currentX)
     const y = Math.min(startPoint.y, currentY)
     const width = Math.abs(currentX - startPoint.x)
     const height = Math.abs(currentY - startPoint.y)
-
     setSelection({ x, y, width, height })
   }
 
-  /**
-   * Stop dragging when mouse is released.
-   * As soon as the user finishes the drag, we immediately crop
-   * the selected region and return it (click + drag + release = capture).
-   */
   const handleMouseUp = () => {
     setIsDragging(false)
-
-    // Only capture if we have a reasonably-sized selection.
-    if (!hasSelection) {
+    if (!hasSelection || !selection) {
       onCancel()
       return
     }
-
-    captureSelection()
-  }
-
-  /**
-   * Crop the selected area from the original screenshot and
-   * notify the caller with the selection and current viewport
-   * size. The caller is responsible for performing the actual
-   * screenshot capture (via background) and cropping.
-   */
-  const captureSelection = () => {
-    if (!selection) {
-      onCancel()
-      return
-    }
-
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
+    const viewport = { width: viewportWidth, height: viewportHeight }
 
-    onSelectionComplete(selection, {
-      width: viewportWidth,
-      height: viewportHeight,
-    })
+    if (imageUrl && imageRef.current && imageLoaded) {
+      const img = imageRef.current
+      const rect = img.getBoundingClientRect()
+      const imageDisplayInfo: ImageDisplayInfo = {
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        displayRect: {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        },
+      }
+      onSelectionComplete(selection, viewport, imageDisplayInfo)
+    } else {
+      onSelectionComplete(selection, viewport)
+    }
   }
 
   const hasSelection = !!selection && selection.width > 4 && selection.height > 4
@@ -128,13 +102,32 @@ const ScreenSelectionOverlay: FC<ScreenSelectionOverlayProps> = ({ onCancel, onS
       onMouseUp={handleMouseUp}
       style={{
         cursor: 'crosshair',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: imageUrl ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.6)',
         position: 'fixed',
         inset: 0,
         zIndex: 2147483646,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      {/* Selection rectangle visual feedback */}
+      {/* When imageUrl is provided, show the original image so user selects on it */}
+      {imageUrl && (
+        <img
+          ref={imageRef}
+          src={imageUrl}
+          alt="Screenshot to select area"
+          onLoad={() => setImageLoaded(true)}
+          style={{
+            maxWidth: '100%',
+            maxHeight: '100%',
+            objectFit: 'contain',
+            pointerEvents: 'none',
+            userSelect: 'none',
+          }}
+        />
+      )}
+
       {hasSelection && selection && (
         <div
           style={{
@@ -151,7 +144,6 @@ const ScreenSelectionOverlay: FC<ScreenSelectionOverlayProps> = ({ onCancel, onS
         />
       )}
 
-      {/* Helper text that follows the mouse cursor */}
       {cursorPosition && (
         <div
           style={{
@@ -167,7 +159,7 @@ const ScreenSelectionOverlay: FC<ScreenSelectionOverlayProps> = ({ onCancel, onS
             whiteSpace: 'nowrap',
           }}
         >
-          Click and drag to select area. Release mouse to capture.
+          {imageUrl ? 'Select area on image. Release to crop.' : 'Click and drag to select area. Release mouse to capture.'}
         </div>
       )}
     </div>

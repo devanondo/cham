@@ -1,198 +1,134 @@
-import Logo from '@/assets/crx.svg'
 import { useEffect, useState } from 'react'
 import './App.css'
 import ScreenshotModal from './ScreenshotModal'
-import ScreenSelectionOverlay from './ScreenSelectionOverlay'
+import ScreenSelectionOverlay, { type ImageDisplayInfo, type SelectionRect } from './ScreenSelectionOverlay'
 
 /**
  * Root React component rendered by the content script.
- * - Renders a small floating button (existing CRXJS demo UI).
  * - Listens for messages from the extension popup to:
- *   - Start an area selection flow on top of the page.
+ *   - Start an area selection flow: capture full screenshot first, then show it with selection overlay so the user selects on the image; crop the original image by that selection.
  *   - Show the final (cropped) screenshot inside a modal editor.
  */
 function App() {
-  const [showDemo, setShowDemo] = useState(false)
-
-  /**
-   * Original full screenshot as captured from the popup.
-   * This can be retained "in the background" while the user works with
-   * a cropped / edited version.
-   */
+  /** Original full screenshot (used when selection was drawn on the image). */
   const [originalScreenshotUrl, setOriginalScreenshotUrl] = useState<string | null>(null)
-
-  /**
-   * Cropped / active screenshot that is currently opened in the editor modal.
-   */
+  /** Cropped / active screenshot shown in the editor modal. */
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null)
-
-  /**
-   * Whether the user is currently selecting an area on top of the page.
-   */
+  /** Whether the selection overlay is visible. */
   const [isSelecting, setIsSelecting] = useState(false)
+  /** Full screenshot to show inside the overlay so the user selects on the image. Set when FULL_CAPTURE_READY is received. */
+  const [selectionImageUrl, setSelectionImageUrl] = useState<string | null>(null)
 
-  type SelectionRect = {
-    x: number
-    y: number
-    width: number
-    height: number
-  }
+  type ViewportSize = { width: number; height: number }
 
-  type ViewportSize = {
-    width: number
-    height: number
-  }
-
-  const cropImageFromSelection = (imageUrl: string, selection: SelectionRect, viewport: ViewportSize) => {
+  /** Crop the original image using selection in viewport coords and how the image was displayed (object-fit contain). */
+  const cropImageFromSelectionOnImage = (
+    imageUrl: string,
+    selection: SelectionRect,
+    imageDisplayInfo: ImageDisplayInfo
+  ) => {
     return new Promise<string>((resolve, reject) => {
       const img = new Image()
-
       img.onload = () => {
         const { naturalWidth, naturalHeight } = img
-
         if (!naturalWidth || !naturalHeight) {
           reject(new Error('Image has invalid dimensions'))
           return
         }
-
-        const scaleX = naturalWidth / viewport.width
-        const scaleY = naturalHeight / viewport.height
-
-        const srcX = Math.max(0, selection.x * scaleX)
-        const srcY = Math.max(0, selection.y * scaleY)
-        const srcWidth = Math.max(1, selection.width * scaleX)
-        const srcHeight = Math.max(1, selection.height * scaleY)
-
+        const { displayRect } = imageDisplayInfo
+        // Map viewport selection to image pixel coordinates
+        const scaleX = naturalWidth / displayRect.width
+        const scaleY = naturalHeight / displayRect.height
+        let srcX = Math.max(0, (selection.x - displayRect.left) * scaleX)
+        let srcY = Math.max(0, (selection.y - displayRect.top) * scaleY)
+        let srcWidth = Math.max(1, selection.width * scaleX)
+        let srcHeight = Math.max(1, selection.height * scaleY)
+        srcWidth = Math.min(srcWidth, naturalWidth - srcX)
+        srcHeight = Math.min(srcHeight, naturalHeight - srcY)
+        if (srcWidth < 1 || srcHeight < 1) {
+          reject(new Error('Selection outside image'))
+          return
+        }
         const canvas = document.createElement('canvas')
         canvas.width = Math.round(srcWidth)
         canvas.height = Math.round(srcHeight)
-
         const ctx = canvas.getContext('2d')
         if (!ctx) {
           reject(new Error('Could not get 2D context for canvas'))
           return
         }
-
         ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, canvas.width, canvas.height)
-
         resolve(canvas.toDataURL('image/png'))
       }
-
-      img.onerror = (err) => {
-        reject(err instanceof Error ? err : new Error('Failed to load image'))
-      }
-
+      img.onerror = () => reject(new Error('Failed to load image'))
       img.src = imageUrl
     })
   }
 
   useEffect(() => {
-    /**
-     * Handle messages from the popup/background.
-     * We support:
-     * - START_AREA_SELECTION: enable selection overlay; screenshot is taken
-     *   AFTER selection is finished, so it reflects the latest scroll.
-     * - AREA_CAPTURE_READY: background has captured the full screenshot for
-     *   the current viewport + scroll; we crop it to the selected area and
-     *   open the modal.
-     * - OPEN_CAPTURE_MODAL: directly open modal with provided image.
-     */
     const handleMessage = (message: unknown) => {
       if (typeof message !== 'object' || message === null || !('type' in message)) return
-
-      const payload = message as {
-        type?: string
-        imageUrl?: string
-        selection?: SelectionRect
-        viewport?: ViewportSize
-      }
+      const payload = message as { type?: string; imageUrl?: string; selection?: SelectionRect; viewport?: ViewportSize }
 
       if (payload.type === 'OPEN_CAPTURE_MODAL' && typeof payload.imageUrl === 'string') {
-        // Direct modal open (no area selection).
         setScreenshotUrl(payload.imageUrl)
         return
       }
 
       if (payload.type === 'START_AREA_SELECTION') {
-        // Enter selection mode; screenshot will be captured later by background.
         setIsSelecting(true)
+        setSelectionImageUrl(null)
+        chrome.runtime.sendMessage({ type: 'REQUEST_FULL_CAPTURE' })
         return
       }
 
-      if (
-        payload.type === 'AREA_CAPTURE_READY' &&
-        typeof payload.imageUrl === 'string' &&
-        payload.selection &&
-        payload.viewport
-      ) {
-        // Background has captured the current visible tab for the active
-        // viewport/scroll. Use the selection + viewport info to crop the
-        // selected area from this full screenshot.
-        setOriginalScreenshotUrl(payload.imageUrl)
-
-        cropImageFromSelection(payload.imageUrl, payload.selection, payload.viewport)
-          .then((croppedUrl) => {
-            setScreenshotUrl(croppedUrl)
-          })
-          .catch((error) => {
-            console.error('Failed to crop image from selection:', error)
-          })
+      if (payload.type === 'FULL_CAPTURE_READY' && typeof payload.imageUrl === 'string') {
+        setSelectionImageUrl(payload.imageUrl)
       }
     }
-
     chrome.runtime.onMessage.addListener(handleMessage)
-
-    // Cleanup the listener when the React tree is unmounted.
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage)
-    }
+    return () => chrome.runtime.onMessage.removeListener(handleMessage)
   }, [])
-
-  const toggleDemo = () => setShowDemo((prev) => !prev)
 
   return (
     <>
-      <div className="popup-container">
-        {showDemo && (
-          <div className={`popup-content ${showDemo ? 'opacity-100' : 'opacity-0'}`}>
-            <h1>HELLO CRXJS</h1>
-          </div>
-        )}
-        <button className="toggle-button" onClick={toggleDemo}>
-          <img src={Logo} alt="CRXJS logo" className="button-icon" />
-        </button>
-      </div>
+      <div className="popup-container" />
 
-      {/* Area selection overlay on top of the page. */}
-      {isSelecting && (
+      {/* Only show selection overlay after we have the captured image, so the capture does not include the overlay. */}
+      {isSelecting && selectionImageUrl && (
         <ScreenSelectionOverlay
+          imageUrl={selectionImageUrl}
           onCancel={() => {
             setIsSelecting(false)
+            setSelectionImageUrl(null)
           }}
-          onSelectionComplete={(selection, viewport) => {
-            // Once the user has finished selecting an area, ask the
-            // background service worker to capture the current visible tab.
-            // It will respond with the full screenshot for this viewport +
-            // scroll position, which we then crop to this selection.
-            setIsSelecting(false)
-
-            chrome.runtime.sendMessage({
-              type: 'REQUEST_CAPTURE_AFTER_SELECTION',
-              selection,
-              viewport,
-            })
+          onSelectionComplete={(selection, _viewport, imageDisplayInfo) => {
+            if (imageDisplayInfo && selectionImageUrl) {
+              setOriginalScreenshotUrl(selectionImageUrl)
+              cropImageFromSelectionOnImage(selectionImageUrl, selection, imageDisplayInfo)
+                .then((croppedUrl) => {
+                  setScreenshotUrl(croppedUrl)
+                  setIsSelecting(false)
+                  setSelectionImageUrl(null)
+                })
+                .catch((err) => {
+                  console.error('Failed to crop image from selection:', err)
+                  setIsSelecting(false)
+                  setSelectionImageUrl(null)
+                })
+            } else {
+              setIsSelecting(false)
+              setSelectionImageUrl(null)
+            }
           }}
         />
       )}
 
-      {/* Modal editor that works with the selected (or full) screenshot. */}
       {screenshotUrl && (
         <ScreenshotModal
           imageUrl={screenshotUrl}
           originalImageUrl={originalScreenshotUrl}
-          onClose={() => {
-            setScreenshotUrl(null)
-          }}
+          onClose={() => setScreenshotUrl(null)}
         />
       )}
     </>

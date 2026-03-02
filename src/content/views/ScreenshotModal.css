@@ -297,3 +297,9 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   padding: 2px;
 }
+
+/* Contenteditable text input (DrawingTools) */
+.drawing-tools__text-input:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.5);
+}
