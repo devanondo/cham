@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import type { FC } from 'react'
 import './ScreenshotModal.css'
 import DrawingTool from './DrawingTools'
+import TextEditor from './right-side-actions/text-editor'
 
 /**
  * Full-screen overlay that displays a captured screenshot on top of the page.
@@ -33,6 +34,15 @@ const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl,
         <div className="screenshot-modal__layout">
           <div className="screenshot-modal__image-container">
             {/* Main working image: the selected / cropped area */}
+
+            <button
+              type="button"
+              aria-label="Close screenshot"
+              className="screenshot-modal__close-button"
+              onClick={onClose}
+            >
+              <X size={16} />
+            </button>
             <div
               style={{
                 width: '100%',
@@ -59,18 +69,9 @@ const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl,
             )}
           </div>
           <div className="screenshot-modal__right-side">
-            <h2 className="">Title</h2>
+            <TextEditor />
           </div>
         </div>
-
-        <button
-          type="button"
-          aria-label="Close screenshot"
-          className="screenshot-modal__close-button"
-          onClick={onClose}
-        >
-          <X />
-        </button>
       </div>
     </div>
   )
