@@ -123,7 +123,7 @@ const TextEditor = () => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {access_token || 'No access token'}
+
         {/* Issue form */}
         <div style={{ marginTop: '10px' }}>
           <div>
