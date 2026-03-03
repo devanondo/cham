@@ -1,5 +1,5 @@
-export type ToolType = 'selection' | 'line' | 'rectangle' | 'pencil' | 'text'
-export type ActionType = 'none' | 'drawing' | 'moving' | 'resizing' | 'writing'
+export type ToolType = 'selection' | 'line' | 'rectangle' | 'blur' | 'pencil' | 'text'
+export type ActionType = 'none' | 'drawing' | 'moving' | 'resizing' | 'writing' | 'selecting'
 export type ResizePosition = 'tl' | 'tr' | 'bl' | 'br' | 'start' | 'end'
 export type PositionType = ResizePosition | 'inside'
 
@@ -33,7 +33,16 @@ export interface TextElement {
   fontSize?: number
 }
 
-export type DrawElement = LineOrRectElement | PencilElement | TextElement
+export interface BlurElement {
+  id: number
+  type: 'blur'
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+}
+
+export type DrawElement = LineOrRectElement | PencilElement | TextElement | BlurElement
 
 export type SelectedElement = DrawElement & {
   position?: PositionType

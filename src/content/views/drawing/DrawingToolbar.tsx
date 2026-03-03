@@ -1,4 +1,15 @@
-import { Camera, CornerUpLeft, CornerUpRight, MousePointer2, Pencil, Slash, Square, Trash2, Type } from 'lucide-react'
+import {
+  Camera,
+  CornerUpLeft,
+  CornerUpRight,
+  Focus,
+  MousePointer2,
+  Pencil,
+  Slash,
+  Square,
+  Trash2,
+  Type,
+} from 'lucide-react'
 import type { ReactElement } from 'react'
 import type { ToolType } from './types'
 import { COLOR_OPTIONS } from './constants'
@@ -7,6 +18,7 @@ const DRAWING_TOOLS: { id: ToolType; icon: ReactElement }[] = [
   { id: 'selection', icon: <MousePointer2 size={18} /> },
   { id: 'line', icon: <Slash size={18} /> },
   { id: 'rectangle', icon: <Square size={18} /> },
+  { id: 'blur', icon: <Focus size={18} /> },
   { id: 'pencil', icon: <Pencil size={18} /> },
   { id: 'text', icon: <Type size={18} /> },
 ]

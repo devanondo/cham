@@ -38,7 +38,8 @@ export const positionWithinElement = (x: number, y: number, element: DrawElement
       const end = nearPoint(x, y, x2, y2, 'end')
       return start || end || on
     }
-    case 'rectangle': {
+    case 'rectangle':
+    case 'blur': {
       const { x1, y1, x2, y2 } = element
       const topLeft = nearPoint(x, y, x1, y1, 'tl')
       const topRight = nearPoint(x, y, x2, y1, 'tr')

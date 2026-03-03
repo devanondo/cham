@@ -23,6 +23,8 @@ export const TextEditorOverlay = ({
   const top = Number.isFinite(textareaViewport.top) ? textareaViewport.top : 0
   const fontSize = selectedElement.fontSize ?? DEFAULT_TEXT_FONT_SIZE
   const borderColor = selectedElement.stroke ?? activeColor
+  const lineHeight = fontSize * 1.1
+  const padding = Math.round(fontSize * 0.4)
   return (
     <div
       ref={textInputRef}
@@ -38,11 +40,9 @@ export const TextEditorOverlay = ({
         minWidth: 80,
         minHeight: 24,
         fontSize: `${fontSize}px`,
+        lineHeight: `${lineHeight}px`,
         margin: 0,
-        paddingTop: 3,
-        paddingBottom: 3,
-        paddingLeft: 8,
-        paddingRight: 8,
+        padding,
         border: `1px solid ${borderColor}`,
         borderRadius: 0,
         outline: 'none',

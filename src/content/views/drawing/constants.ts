@@ -16,6 +16,9 @@ export const COLOR_OPTIONS: string[] = [
   '#a3e635',
 ]
 
+/** Blur radius in pixels for the blur tool. */
+export const BLUR_RADIUS_PX = 12
+
 export const PENCIL_CURSOR_SVG =
   'data:image/svg+xml,' +
   encodeURIComponent(
