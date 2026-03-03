@@ -57,21 +57,62 @@ function handleRequestCaptureAfterSelection(payload: CaptureAfterSelectionMessag
   })
 }
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender, _sendResponse) => {
+chrome.runtime.onMessage.addListener((message: unknown, _sender, sendResponse) => {
   if (typeof message !== 'object' || message === null || !('type' in message)) return
 
   const msg = message as { type: string }
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const activeTabId = tabs[0]?.id
-    if (activeTabId == null) return
 
-    if (msg.type === 'REQUEST_FULL_CAPTURE') {
-      handleRequestFullCapture(activeTabId)
-      return
-    }
-    if (msg.type === 'REQUEST_CAPTURE_AFTER_SELECTION') {
-      handleRequestCaptureAfterSelection(message as CaptureAfterSelectionMessage, activeTabId)
-    }
-  })
+  // ─── Capture messages ──────────────────────────────────────────────────────
+  if (msg.type === 'REQUEST_FULL_CAPTURE' || msg.type === 'REQUEST_CAPTURE_AFTER_SELECTION') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTabId = tabs[0]?.id
+      if (activeTabId == null) return
+      if (msg.type === 'REQUEST_FULL_CAPTURE') {
+        handleRequestFullCapture(activeTabId)
+      } else {
+        handleRequestCaptureAfterSelection(message as CaptureAfterSelectionMessage, activeTabId)
+      }
+    })
+    return
+  }
+
+  // ─── Auth relay ────────────────────────────────────────────────────────────
+  if (msg.type === 'AUTH_STATE_CHANGED' || msg.type === 'LOGOUT') {
+    // Relay to all content script tabs
+    chrome.tabs.query({}, (tabs) => {
+      for (const tab of tabs) {
+        if (tab.id != null) {
+          chrome.tabs.sendMessage(tab.id, message).catch(() => {})
+        }
+      }
+    })
+    return
+  }
+
+  if (msg.type === 'GET_AUTH_STATE') {
+    chrome.storage.local.get(['access_token', 'user'], (result) => {
+      sendResponse({ access_token: result.access_token ?? null, user: result.user ?? null })
+    })
+    return true // keep channel open for async sendResponse
+  }
+
+  // ─── Workspace relay ───────────────────────────────────────────────────────
+  if (msg.type === 'WORKSPACE_STATE_CHANGED') {
+    chrome.tabs.query({}, (tabs) => {
+      for (const tab of tabs) {
+        if (tab.id != null) {
+          chrome.tabs.sendMessage(tab.id, message).catch(() => {})
+        }
+      }
+    })
+    return
+  }
+
+  if (msg.type === 'GET_WORKSPACE_STATE') {
+    chrome.storage.local.get('workspaces', (result) => {
+      sendResponse({ workspaces: result.workspaces ?? null })
+    })
+    return true
+  }
 })
 
