@@ -1,40 +1,32 @@
 import { X } from 'lucide-react'
-import type { FC } from 'react'
+import { useRef, type FC } from 'react'
 import './ScreenshotModal.css'
 import DrawingTool from './DrawingTools'
 import TextEditor from './right-side-actions/text-editor'
+import type { DrawingToolHandle } from './drawing/types'
 
-/**
- * Full-screen overlay that displays a captured screenshot on top of the page.
- * This lives in the content script React tree and is controlled via props.
- */
 type ScreenshotModalProps = {
-  /** Data URL of the active / cropped screenshot (png / jpeg). */
   imageUrl: string
-  /** Optional original full screenshot to show in a small preview. */
   originalImageUrl?: string | null
-  /** Called when the user closes the modal (clicks X or backdrop). */
   onClose: () => void
 }
 
 const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl, onClose }) => {
-  /**
-   * Close when the user clicks on the dark backdrop area, but not
-   * when they click inside the content card.
-   */
+  const drawingRef = useRef<DrawingToolHandle>(null)
+
   const handleBackdropClick: React.MouseEventHandler<HTMLDivElement> = (event) => {
     if (event.target === event.currentTarget) {
       onClose()
     }
   }
 
+  const captureCanvas = (): File | null => drawingRef.current?.captureAsFile() ?? null
+
   return (
     <div className="screenshot-modal__overlay" onClick={handleBackdropClick}>
       <div className="screenshot-modal__content">
         <div className="screenshot-modal__layout">
           <div className="screenshot-modal__image-container">
-            {/* Main working image: the selected / cropped area */}
-
             <button
               type="button"
               aria-label="Close screenshot"
@@ -54,10 +46,9 @@ const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl,
                 overflow: 'hidden',
               }}
             >
-              <DrawingTool imageUrl={imageUrl} />
+              <DrawingTool ref={drawingRef} imageUrl={imageUrl} />
             </div>
 
-            {/* Optional small preview of the original full screenshot */}
             {originalImageUrl && (
               <div className="screenshot-modal__preview">
                 <img
@@ -69,7 +60,7 @@ const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl,
             )}
           </div>
           <div className="screenshot-modal__right-side">
-            <TextEditor />
+            <TextEditor captureCanvas={captureCanvas} onClose={onClose} />
           </div>
         </div>
       </div>

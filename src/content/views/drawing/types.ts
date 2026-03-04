@@ -55,3 +55,7 @@ export type SelectedElement = DrawElement & {
 export type DrawingToolProps = {
   imageUrl?: string | null
 }
+
+export interface DrawingToolHandle {
+  captureAsFile: () => File | null
+}

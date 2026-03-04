@@ -1,8 +1,7 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { UserInfoResponse } from '@/types/auth.type'
 import type { RootState } from '@/store'
-import { chromeStorage } from '@/lib/chrome-storage'
-import { sendToBackground } from '@/lib/messages'
+import { cookieStorage } from '@/lib/cookie-storage'
 
 const BASE_URL = 'https://api.taskgrid.xyz'
 
@@ -11,12 +10,30 @@ export interface LoginRequest {
   password: string
 }
 
+// //
+// Create Issue
+// priantibanik
+// {
+//   "_id": "691d5fab83113b001dddf468",
+//   "avatar": "https://cdn.egshop.dev/taskgrid/avatars/Turna-01-1765282905012-e3d42d47.jpg",
+//   "email": "priantibanik@gmail.com",
+//   "emailVerified": true,
+//   "lastActiveWorkspaceURL": "priantibaniks-workspace",
+//   "name": "priantibanik",
+//   "role": "user",
+//   "username": "priantibanik"
+// }
 export interface LoginResponse {
   access_token: string
   user: {
-    id: string
+    _id: string
     email: string
     name: string
+    avatar: string
+    emailVerified: boolean
+    lastActiveWorkspaceURL: string
+    role: string
+    username: string
   }
 }
 
@@ -40,9 +57,10 @@ const initialState: AuthState = {
 
 // Hydrates the store from chrome.storage.local — call this on every context startup
 export const initAuth = createAsyncThunk('auth/init', async () => {
-  const access_token = await chromeStorage.get<string>('access_token')
-  const user = await chromeStorage.get<LoginResponse['user']>('user')
-  return { access_token, user }
+  const access_token = await cookieStorage.get<string>('access_token')
+  const user = await cookieStorage.get<LoginResponse['user']>('user')
+  const userInfo = await cookieStorage.get<UserInfoResponse>('userInfo')
+  return { access_token, user, userInfo }
 })
 
 export const login = createAsyncThunk<LoginResponse, LoginRequest, { rejectValue: string }>(
@@ -98,10 +116,7 @@ const authSlice = createSlice({
       state.access_token = null
       state.isLoggedIn = false
       state.error = null
-      chromeStorage.remove('access_token')
-      chromeStorage.remove('user')
-      chromeStorage.remove('workspaces')
-      sendToBackground({ type: 'LOGOUT' })
+      cookieStorage.clear()
     },
     clearError(state) {
       state.error = null
@@ -110,18 +125,19 @@ const authSlice = createSlice({
       state.access_token = action.payload.access_token
       state.userInfo = action.payload.userInfo
 
-      chromeStorage.set('access_token', action.payload.access_token)
-      chromeStorage.set('userInfo', action.payload.userInfo)
+      cookieStorage.set('access_token', action.payload.access_token)
+      cookieStorage.set('userInfo', action.payload.userInfo)
     },
   },
   extraReducers: (builder) => {
     builder
       // initAuth — hydrate store from chrome.storage on startup
       .addCase(initAuth.fulfilled, (state, action) => {
-        const { access_token, user } = action.payload
+        const { access_token, user, userInfo } = action.payload
         if (access_token) {
           state.access_token = access_token
           state.user = user
+          state.userInfo = userInfo ?? null
           state.isLoggedIn = true
         }
       })
@@ -135,12 +151,8 @@ const authSlice = createSlice({
         state.isLoggedIn = true
         state.access_token = action.payload.access_token
         state.user = action.payload.user
-        chromeStorage.set('access_token', action.payload.access_token)
-        chromeStorage.set('user', action.payload.user)
-        sendToBackground({
-          type: 'AUTH_STATE_CHANGED',
-          payload: { access_token: action.payload.access_token, user: action.payload.user },
-        })
+        cookieStorage.set('access_token', action.payload.access_token)
+        cookieStorage.set('user', action.payload.user)
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false
@@ -155,6 +167,7 @@ const authSlice = createSlice({
         state.loading = false
         state.userInfo = action.payload
         state.isLoggedIn = true
+        cookieStorage.set('userInfo', action.payload)
       })
       .addCase(getUserInfo.rejected, (state, action) => {
         state.loading = false

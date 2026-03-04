@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import rough from 'roughjs/bundled/rough.esm'
 import './ScreenshotModal.css'
 import type { DrawElement, LineOrRectElement, PencilElement, SelectedElement, TextElement } from './drawing/types'
@@ -22,9 +22,9 @@ import { createElement, drawElement, getDefaultTextFontSizeForCanvas } from './d
 import { useHistory } from './drawing/useHistory'
 import { DrawingToolbar } from './drawing/DrawingToolbar'
 import { TextEditorOverlay } from './drawing/TextEditorOverlay'
-import type { DrawingToolProps } from './drawing/types'
+import type { DrawingToolHandle, DrawingToolProps } from './drawing/types'
 
-const DrawingTool = ({ imageUrl }: DrawingToolProps) => {
+const DrawingTool = forwardRef<DrawingToolHandle, DrawingToolProps>(({ imageUrl }, ref) => {
   const [elements, setElements, undo, redo] = useHistory<DrawElement[]>([])
   const [action, setAction] = useState<ActionType>('none')
   const [tool, setTool] = useState<ToolType>('text')
@@ -154,6 +154,27 @@ const DrawingTool = ({ imageUrl }: DrawingToolProps) => {
       console.warn('Canvas export failed (e.g. tainted by cross-origin image):', e)
     }
   }
+
+  useImperativeHandle(ref, () => ({
+    captureAsFile: () => {
+      const canvas = canvasRef.current
+      if (!canvas) return null
+      try {
+        const dataUrl = canvas.toDataURL('image/png')
+        const byteString = atob(dataUrl.split(',')[1])
+        const arrayBuffer = new ArrayBuffer(byteString.length)
+        const uint8Array = new Uint8Array(arrayBuffer)
+        for (let i = 0; i < byteString.length; i++) {
+          uint8Array[i] = byteString.charCodeAt(i)
+        }
+        const blob = new Blob([arrayBuffer], { type: 'image/png' })
+        return new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' })
+      } catch (e) {
+        console.warn('Canvas capture failed:', e)
+        return null
+      }
+    },
+  }))
 
   const selectedElementRef = useRef(selectedElement)
   const selectedIdsRef = useRef<number[]>(selectedIds)
@@ -687,6 +708,6 @@ const DrawingTool = ({ imageUrl }: DrawingToolProps) => {
       />
     </div>
   )
-}
+})
 
 export default DrawingTool
