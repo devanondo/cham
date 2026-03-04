@@ -47,25 +47,17 @@
 
 /* Toolbar */
 .screenshot-modal__toolbar {
-  position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 4px 6px;
-  border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.92);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  z-index: 2;
-  padding: 8px;
+  padding: 10px 20px;
+  background-color: white;
 }
 
 .screenshot-modal__toolbar-item {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 9999px;
   border: 1px solid transparent;
   display: flex;
@@ -73,17 +65,18 @@
   justify-content: center;
   cursor: pointer;
   background: transparent;
-  color: #e5e7eb;
+  color: #000000;
+  font-size: 30px;
 }
 
 .screenshot-modal__toolbar-item:hover {
-  background: white;
-  color: black;
+  background: black;
+  color: white;
 }
 
 .screenshot-modal__toolbar-item--active {
-  color: black;
-  background-color: white;
+  color: white;
+  background-color: black;
 }
 
 .screenshot-modal__toolbar-item--swatch {
@@ -99,7 +92,7 @@
 
 .screenshot-modal__color-dropdown {
   position: absolute;
-  top: 150%;
+  bottom: 150%;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -151,16 +144,8 @@
 
 /* Original preview */
 .screenshot-modal__preview {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  width: 200px;
-  height: 120px;
-  border-radius: 8px;
+  height: 50px;
   overflow: hidden;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(15, 23, 42, 0.4);
-  background: #020617;
 }
 
 .screenshot-modal__preview-image {

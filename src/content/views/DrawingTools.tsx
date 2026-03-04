@@ -659,37 +659,21 @@ const DrawingTool = forwardRef<DrawingToolHandle, DrawingToolProps>(({ imageUrl 
       ref={containerRef}
       style={{
         width: '100%',
-        border: '1px solid blue',
         marginTop: '0px',
-        backgroundColor: 'rgba(0, 0, 0, 0.1)',
         position: 'relative',
         zIndex: 1000,
       }}
     >
-      <DrawingToolbar
-        tool={tool}
-        setTool={setTool}
-        activeColor={activeColor}
-        setActiveColor={setActiveColor}
-        colorMenuOpen={colorMenuOpen}
-        setColorMenuOpen={setColorMenuOpen}
-        colorDropdownRef={colorDropdownRef}
-        undo={undo}
-        redo={redo}
-        deleteSelectedElement={deleteSelectedElement}
-        selectedElement={selectedElement}
-        action={action}
-        takeCanvasScreenshot={takeCanvasScreenshot}
-      />
       <canvas
         ref={canvasRef}
         id="canvas"
         width={canvasWidth}
         height={canvasHeight}
         style={{
-          maxWidth: '100%',
-          maxHeight: '100%',
           display: 'block',
+          width: '100%',
+          height: 'auto',
+          maxHeight: '70vh',
           cursor: tool === 'pencil' ? `url("${PENCIL_CURSOR_SVG}") 2 22, crosshair` : undefined,
         }}
         onMouseDown={handleMouseDown}
@@ -698,6 +682,32 @@ const DrawingTool = forwardRef<DrawingToolHandle, DrawingToolProps>(({ imageUrl 
       >
         Canvas
       </canvas>
+      <div
+        className=""
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          height: 'fit-content',
+          paddingTop: '10px',
+          paddingBottom: '10px',
+        }}
+      >
+        <DrawingToolbar
+          tool={tool}
+          setTool={setTool}
+          activeColor={activeColor}
+          setActiveColor={setActiveColor}
+          colorMenuOpen={colorMenuOpen}
+          setColorMenuOpen={setColorMenuOpen}
+          colorDropdownRef={colorDropdownRef}
+          undo={undo}
+          redo={redo}
+          deleteSelectedElement={deleteSelectedElement}
+          selectedElement={selectedElement}
+          action={action}
+          takeCanvasScreenshot={takeCanvasScreenshot}
+        />
+      </div>
       <TextEditorOverlay
         visible={action === 'writing' && selectedElement?.type === 'text'}
         textareaViewport={textareaViewport}

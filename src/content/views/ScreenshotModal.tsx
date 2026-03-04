@@ -50,12 +50,25 @@ const ScreenshotModal: FC<ScreenshotModalProps> = ({ imageUrl, originalImageUrl,
             </div>
 
             {originalImageUrl && (
-              <div className="screenshot-modal__preview">
-                <img
-                  src={originalImageUrl}
-                  alt="Original full screenshot"
-                  className="screenshot-modal__preview-image"
-                />
+              <div
+                className=""
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  overflow: 'hidden',
+                  gap: 10,
+                }}
+              >
+                <div className="screenshot-modal__preview">
+                  <img
+                    src={originalImageUrl}
+                    alt="Original full screenshot"
+                    className="screenshot-modal__preview-image"
+                  />
+                </div>
+
+                <h3 className="">Original Image</h3>
               </div>
             )}
           </div>

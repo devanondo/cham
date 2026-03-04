@@ -1,7 +1,7 @@
 import { useAppDispatch, useAppSelector } from '@/store'
 import { logout } from '@/store/slices/authSlice'
 import { getBoardColumns, getWorkSpaceBoards, getWorkspaceMembers, getWorkspaces } from '@/store/slices/workspaceSlice'
-import { createAttachmentAction } from '@/store/slices/attachment.slice'
+import { clearAttachments, createAttachmentAction } from '@/store/slices/attachment.slice'
 import { createTaskAction } from '@/store/slices/task.slice'
 import { CheckCircle2, Copy, Check, ExternalLink, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -96,7 +96,7 @@ const TextEditor = ({ captureCanvas, onClose }: TextEditorProps) => {
             taskId: null,
           })
         ).unwrap()
-        attachmentIds = [...attachmentIds, ...createdAttachment.map((a) => a._id)]
+        attachmentIds = [...createdAttachment.map((a) => a._id)]
       }
 
       const task = await dispatch(
@@ -135,6 +135,7 @@ const TextEditor = ({ captureCanvas, onClose }: TextEditorProps) => {
         setSelectedWorkspaceId('')
         setSelectedMembersIds([])
         setPriority(0)
+        clearAttachments()
       }
     } catch (err) {
       console.error('Failed to create issue:', err)
@@ -365,11 +366,11 @@ const TextEditor = ({ captureCanvas, onClose }: TextEditorProps) => {
 export default TextEditor
 
 const PRIORITY_OPTIONS = [
-  { value: 0, label: 'None', color: '#94a3b8', bg: '#f1f5f9' },
-  { value: 1, label: 'Low', color: '#3b82f6', bg: '#eff6ff' },
-  { value: 2, label: 'Medium', color: '#f59e0b', bg: '#fffbeb' },
-  { value: 3, label: 'High', color: '#f97316', bg: '#fff7ed' },
-  { value: 4, label: 'Urgent', color: '#ef4444', bg: '#fef2f2' },
+  { value: 0, label: 'No priority', color: '#94a3b8', bg: '#f1f5f9' },
+  { value: 1, label: 'Urgent', color: '#ef4444', bg: '#fef2f2' },
+  { value: 2, label: 'High', color: '#f97316', bg: '#fff7ed' },
+  { value: 3, label: 'Medium', color: '#f59e0b', bg: '#fffbeb' },
+  { value: 4, label: 'Low', color: '#3b82f6', bg: '#eff6ff' },
 ] as const
 
 const labelStyle = {

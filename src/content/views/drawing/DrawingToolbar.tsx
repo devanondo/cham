@@ -54,7 +54,7 @@ export const DrawingToolbar = ({
   action,
   takeCanvasScreenshot,
 }: DrawingToolbarProps) => (
-  <div className="screenshot-modal__toolbar" style={{ position: 'absolute' }}>
+  <div className="screenshot-modal__toolbar">
     <div className="relative">
       <button
         type="button"
@@ -67,11 +67,7 @@ export const DrawingToolbar = ({
         <span className="screenshot-modal__color-swatch" style={{ backgroundColor: activeColor }} />
       </button>
       {colorMenuOpen && (
-        <div
-          ref={colorDropdownRef}
-          className="screenshot-modal__color-dropdown"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div ref={colorDropdownRef} className="screenshot-modal__color-dropdown" onClick={(e) => e.stopPropagation()}>
           {COLOR_OPTIONS.map((color) => (
             <button
               key={color}
